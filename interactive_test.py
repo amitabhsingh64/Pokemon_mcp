@@ -8,6 +8,7 @@ Provides a command-line interface to test all server endpoints and features.
 import asyncio
 import json
 import sys
+import time
 from typing import Dict, Any, Optional
 
 import httpx
@@ -17,8 +18,251 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.progress import Progress
 from rich import print as rprint
+from rich.live import Live
+from rich.text import Text
 
 console = Console()
+
+# Battle emojis mapping
+POKEMON_EMOJIS = {
+    'charizard': '🔥', 'blastoise': '🌊', 'venusaur': '🌿', 'pikachu': '⚡', 'raichu': '⚡',
+    'mewtwo': '🧠', 'mew': '✨', 'zapdos': '⚡', 'articuno': '❄️', 'moltres': '🔥',
+    'alakazam': '🔮', 'machamp': '💪', 'gengar': '👻', 'gyarados': '🐉', 'dragonite': '🐉',
+    'snorlax': '😴', 'lucario': '🥋', 'garchomp': '🦈', 'tyranitar': '🗿', 'salamence': '🐉'
+}
+
+TYPE_EMOJIS = {
+    'fire': '🔥', 'water': '🌊', 'grass': '🌿', 'electric': '⚡', 'psychic': '🧠',
+    'ice': '❄️', 'dragon': '🐉', 'dark': '🌑', 'steel': '⚙️', 'fairy': '✨',
+    'fighting': '👊', 'poison': '☠️', 'ground': '🌍', 'flying': '🦅', 'bug': '🐛',
+    'rock': '🗿', 'ghost': '👻', 'normal': '⚪'
+}
+
+STATUS_EMOJIS = {
+    'paralysis': '⚡', 'burn': '🔥', 'poison': '☠️', 'freeze': '❄️', 'sleep': '😴'
+}
+
+async def display_epic_battle(result: Dict[str, Any], pokemon1: str, pokemon2: str):
+    """Display battle with epic slow animation and emojis."""
+    
+    # Get battle data
+    winner = result.get('winner', 'Unknown')
+    total_turns = result.get('turns', 0)
+    battle_log = result.get('battle_log', [])
+    final_stats = result.get('final_stats', {})
+    turn_history = result.get('turn_history', [])
+    
+    # Get Pokemon emojis
+    p1_emoji = POKEMON_EMOJIS.get(pokemon1.lower(), '🎮')
+    p2_emoji = POKEMON_EMOJIS.get(pokemon2.lower(), '🎮')
+    
+    # Battle intro
+    rprint("\n" + "="*60)
+    rprint(f"[bold yellow]🏟️  EPIC POKEMON BATTLE ARENA  🏟️[/bold yellow]")
+    rprint("="*60)
+    await asyncio.sleep(1)
+    
+    rprint(f"\n[bold blue]{p1_emoji} {pokemon1.title()}[/bold blue] [bold white]VS[/bold white] [bold red]{p2_emoji} {pokemon2.title()}[/bold red]")
+    await asyncio.sleep(1)
+    
+    # Show initial stats
+    rprint(f"\n[cyan]📊 Battle Setup:[/cyan]")
+    for name, stats in final_stats.items():
+        emoji = POKEMON_EMOJIS.get(name.lower(), '🎮')
+        types = stats.get('types', [])
+        type_emojis = ''.join([TYPE_EMOJIS.get(t, '') for t in types[:2]])
+        max_hp = stats.get('max_hp', 100)
+        rprint(f"  {emoji} [bold]{name.title()}[/bold] {type_emojis} - {max_hp} HP")
+    
+    await asyncio.sleep(2)
+    rprint(f"\n[bold yellow]⚔️  BATTLE BEGIN!  ⚔️[/bold yellow]\n")
+    await asyncio.sleep(1)
+    
+    # Display turn-by-turn action
+    if turn_history:
+        for turn_data in turn_history:
+            await display_battle_turn(turn_data, p1_emoji, p2_emoji)
+    else:
+        # Fallback to battle log
+        await display_battle_log_slow(battle_log, p1_emoji, p2_emoji)
+    
+    # Battle conclusion
+    await asyncio.sleep(1)
+    rprint("\n" + "="*60)
+    rprint(f"[bold yellow]🏆  BATTLE CONCLUSION  🏆[/bold yellow]")
+    rprint("="*60)
+    await asyncio.sleep(0.5)
+    
+    if winner.lower() == 'draw':
+        rprint(f"[bold yellow]🤝 It's a draw! Both Pokemon fought valiantly![/bold yellow]")
+    else:
+        winner_emoji = POKEMON_EMOJIS.get(winner.lower(), '👑')
+        rprint(f"[bold green]🎉 {winner_emoji} {winner.title()} is victorious! 🎉[/bold green]")
+    
+    rprint(f"[blue]📊 Battle Duration: {total_turns} turns[/blue]")
+    await asyncio.sleep(1)
+    
+    # Final stats with health bars
+    rprint(f"\n[bold cyan]📈 Final Battle Stats:[/bold cyan]")
+    for name, stats in final_stats.items():
+        emoji = POKEMON_EMOJIS.get(name.lower(), '🎮')
+        hp = stats.get('hp', 0)
+        max_hp = stats.get('max_hp', 1)
+        hp_percent = stats.get('hp_percentage', 0)
+        status_effects = stats.get('status', [])
+        is_fainted = stats.get('is_fainted', False)
+        
+        # Create health bar
+        health_bar = create_health_bar(hp, max_hp)
+        
+        status_text = ""
+        if status_effects:
+            status_emojis = ''.join([STATUS_EMOJIS.get(s, '❓') for s in status_effects])
+            status_text = f" {status_emojis}"
+        
+        if is_fainted:
+            rprint(f"  {emoji} [bold]{name.title()}[/bold]: [red]💀 FAINTED[/red]{status_text}")
+        else:
+            rprint(f"  {emoji} [bold]{name.title()}[/bold]: {health_bar} {hp}/{max_hp} HP ({hp_percent:.1f}%){status_text}")
+        
+        await asyncio.sleep(0.5)
+    
+    # Show battle mechanics used
+    mechanics = result.get('battle_mechanics', {})
+    if mechanics:
+        rprint(f"\n[bold cyan]🔧 Battle Mechanics Showcased:[/bold cyan]")
+        features = mechanics.get('features_implemented', [])
+        status_features = mechanics.get('status_effects_available', [])
+        
+        for i, feature in enumerate(features[:3], 1):
+            rprint(f"  ✅ {feature}")
+            await asyncio.sleep(0.3)
+        
+        if status_features:
+            rprint(f"  ⚡ Status Effects: {', '.join([s.split()[0] for s in status_features[:3]])}")
+            await asyncio.sleep(0.3)
+    
+    rprint(f"\n[bold yellow]Thanks for watching this epic battle! 🎮[/bold yellow]")
+
+async def display_battle_turn(turn_data: Dict[str, Any], p1_emoji: str, p2_emoji: str):
+    """Display a single battle turn with animation."""
+    turn_num = turn_data.get('turn_number', 0)
+    p1_action = turn_data.get('pokemon1_action', '')
+    p2_action = turn_data.get('pokemon2_action', '')
+    p1_move = turn_data.get('pokemon1_move', '')
+    p2_move = turn_data.get('pokemon2_move', '')
+    damage_dealt = turn_data.get('damage_dealt', {})
+    status_effects = turn_data.get('status_effects', [])
+    p1_hp = turn_data.get('pokemon1_hp_after', 0)
+    p2_hp = turn_data.get('pokemon2_hp_after', 0)
+    
+    rprint(f"[bold blue]🔄 Turn {turn_num}[/bold blue]")
+    await asyncio.sleep(0.8)
+    
+    # Show actions with emojis
+    if p1_action and 'used' in p1_action.lower():
+        move_emoji = get_move_emoji(p1_move)
+        enhanced_action = add_battle_emojis(p1_action)
+        rprint(f"  {p1_emoji} {enhanced_action} {move_emoji}")
+        await asyncio.sleep(1.2)
+    
+    if p2_action and 'used' in p2_action.lower():
+        move_emoji = get_move_emoji(p2_move)
+        enhanced_action = add_battle_emojis(p2_action)
+        rprint(f"  {p2_emoji} {enhanced_action} {move_emoji}")
+        await asyncio.sleep(1.2)
+    
+    # Show status effects
+    for status_msg in status_effects:
+        enhanced_status = add_battle_emojis(status_msg)
+        rprint(f"  💫 {enhanced_status}")
+        await asyncio.sleep(0.8)
+    
+    # Show HP after turn
+    if p1_hp > 0 and p2_hp > 0:
+        rprint(f"  💚 HP: {p1_emoji} {p1_hp} | {p2_emoji} {p2_hp}")
+    elif p1_hp <= 0:
+        rprint(f"  💀 {p1_emoji} fainted!")
+    elif p2_hp <= 0:
+        rprint(f"  💀 {p2_emoji} fainted!")
+    
+    await asyncio.sleep(0.5)
+    rprint("")
+
+async def display_battle_log_slow(battle_log: list, p1_emoji: str, p2_emoji: str):
+    """Display battle log slowly with emojis as fallback."""
+    for i, log_entry in enumerate(battle_log):
+        if log_entry.strip():
+            enhanced_log = add_battle_emojis(log_entry)
+            rprint(f"  {enhanced_log}")
+            await asyncio.sleep(1.0)
+        
+        # Add spacing every few entries
+        if (i + 1) % 3 == 0:
+            await asyncio.sleep(0.5)
+
+def create_health_bar(current_hp: int, max_hp: int, width: int = 20) -> str:
+    """Create a visual health bar."""
+    if max_hp <= 0:
+        return "[red]▬▬▬▬▬▬▬▬▬▬[/red]"
+    
+    percentage = current_hp / max_hp
+    filled = int(width * percentage)
+    empty = width - filled
+    
+    if percentage > 0.6:
+        color = "green"
+    elif percentage > 0.3:
+        color = "yellow"
+    else:
+        color = "red"
+    
+    bar = "█" * filled + "░" * empty
+    return f"[{color}]{bar}[/{color}]"
+
+def get_move_emoji(move_name: str) -> str:
+    """Get emoji for move type."""
+    if not move_name:
+        return ""
+    
+    move_lower = move_name.lower()
+    
+    move_emojis = {
+        'fire': '🔥', 'flame': '🔥', 'ember': '🔥', 'blast': '💥',
+        'water': '🌊', 'surf': '🌊', 'bubble': '💧', 'hydro': '🌊',
+        'thunder': '⚡', 'electric': '⚡', 'shock': '⚡', 'bolt': '⚡',
+        'psychic': '🧠', 'confusion': '🌀', 'psybeam': '💫',
+        'ice': '❄️', 'freeze': '❄️', 'blizzard': '🌨️',
+        'earthquake': '🌍', 'ground': '🌍', 'dig': '🕳️',
+        'wing': '🦅', 'fly': '🦅', 'aerial': '🦅',
+        'tackle': '👊', 'punch': '👊', 'scratch': '🔪', 'slash': '⚔️',
+        'poison': '☠️', 'toxic': '☠️', 'sludge': '🟢',
+        'rock': '🗿', 'stone': '🗿', 'slide': '⛰️'
+    }
+    
+    for keyword, emoji in move_emojis.items():
+        if keyword in move_lower:
+            return emoji
+    
+    return "💫"
+
+def add_battle_emojis(text: str) -> str:
+    """Add emojis to battle text for more excitement."""
+    text = text.replace("super effective", "💥 SUPER EFFECTIVE 💥")
+    text = text.replace("not very effective", "😐 not very effective")
+    text = text.replace("critical hit", "💥 CRITICAL HIT 💥")
+    text = text.replace("fainted", "💀 fainted")
+    text = text.replace("burned", "🔥 burned")
+    text = text.replace("paralyzed", "⚡ paralyzed")
+    text = text.replace("poisoned", "☠️ poisoned")
+    text = text.replace("frozen", "❄️ frozen")
+    text = text.replace("asleep", "😴 asleep")
+    text = text.replace("hurt by burn", "🔥 hurt by burn")
+    text = text.replace("hurt by poison", "☠️ hurt by poison")
+    text = text.replace("unable to move", "😵 unable to move")
+    text = text.replace("missed", "💨 missed")
+    
+    return text
 
 class PokemonMCPTester:
     """Interactive tester for Pokemon MCP Server."""
@@ -241,60 +485,9 @@ async def battle(ctx, pokemon1, pokemon2, level):
             progress.update(task, completed=100)
         
         if "error" in result:
-            rprint(f"[red]✗ Error: {result['error']}[/red]")
+            rprint(f"[red]❌ Error: {result['error']}[/red]")
         else:
-            # Handle new enhanced battle system format
-            winner = result.get('winner', 'Unknown')
-            total_turns = result.get('turns', 0)
-            
-            rprint(f"\n[green]🏆 Winner: {winner.title()}[/green]")
-            rprint(f"[blue]📊 Battle lasted {total_turns} turns[/blue]")
-            
-            # Show battle log (enhanced format)
-            battle_log = result.get('battle_log', [])
-            if battle_log:
-                rprint("\n[yellow]📜 Battle Highlights:[/yellow]")
-                # Show key moments from the battle
-                key_moments = []
-                for log in battle_log:
-                    if any(keyword in log.lower() for keyword in ['used', 'critical', 'super effective', 'fainted']):
-                        key_moments.append(log)
-                
-                # Show last 8 key moments
-                for moment in key_moments[-8:]:
-                    if moment.strip():
-                        rprint(f"  • {moment}")
-            
-            # Show final stats (enhanced format)
-            final_stats = result.get('final_stats', {})
-            if final_stats:
-                rprint("\n[blue]📈 Final Stats:[/blue]")
-                for pokemon_name, stats in final_stats.items():
-                    hp = stats.get('hp', 0)
-                    max_hp = stats.get('max_hp', 1)
-                    hp_percent = stats.get('hp_percentage', 0)
-                    status_effects = stats.get('status', [])
-                    is_fainted = stats.get('is_fainted', False)
-                    
-                    status_text = ""
-                    if status_effects:
-                        status_text = f" ({', '.join(status_effects).title()})"
-                    
-                    if is_fainted:
-                        rprint(f"  • {pokemon_name.title()}: [red]Fainted[/red]{status_text}")
-                    else:
-                        rprint(f"  • {pokemon_name.title()}: {hp}/{max_hp} HP ({hp_percent:.1f}%){status_text}")
-            
-            # Show battle mechanics summary
-            mechanics = result.get('battle_mechanics', {})
-            if mechanics:
-                rprint("\n[cyan]🔧 Battle Mechanics Used:[/cyan]")
-                features = mechanics.get('features_implemented', [])
-                if features:
-                    for feature in features[:5]:  # Show first 5 features
-                        rprint(f"  ✓ {feature}")
-                    if len(features) > 5:
-                        rprint(f"  ... and {len(features) - 5} more features")
+            await display_epic_battle(result, pokemon1, pokemon2)
 
 
 @cli.command()
