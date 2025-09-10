@@ -119,6 +119,49 @@ class PoisonEffect(StatusEffect):
         return 1.0
 
 
+class FreezeEffect(StatusEffect):
+    """Freeze status effect."""
+    
+    def __init__(self):
+        super().__init__(StatusType.FREEZE.value)
+        self.thaw_chance = 0.2  # 20% chance to thaw each turn
+    
+    def apply_turn_effect(self, pokemon: 'BattlePokemon') -> str:
+        """Check if Pokemon thaws out."""
+        if random.random() < self.thaw_chance:
+            return f"{pokemon.name} thawed out!"
+        return f"{pokemon.name} is frozen solid!"
+    
+    def prevents_action(self, pokemon: 'BattlePokemon') -> bool:
+        """Freeze prevents all actions except thawing."""
+        return True
+    
+    def get_stat_modifier(self, stat_name: str) -> float:
+        """Freeze has no stat modifiers."""
+        return 1.0
+
+
+class SleepEffect(StatusEffect):
+    """Sleep status effect."""
+    
+    def __init__(self):
+        # Sleep lasts 1-3 turns
+        duration = random.randint(1, 3)
+        super().__init__(StatusType.SLEEP.value, duration)
+    
+    def apply_turn_effect(self, pokemon: 'BattlePokemon') -> str:
+        """Pokemon is sleeping."""
+        return f"{pokemon.name} is fast asleep!"
+    
+    def prevents_action(self, pokemon: 'BattlePokemon') -> bool:
+        """Sleep prevents all actions."""
+        return True
+    
+    def get_stat_modifier(self, stat_name: str) -> float:
+        """Sleep has no stat modifiers."""
+        return 1.0
+
+
 class StatusManager:
     """Manages status effects for Pokemon."""
     
@@ -126,6 +169,8 @@ class StatusManager:
         StatusType.PARALYSIS.value: ParalysisEffect,
         StatusType.BURN.value: BurnEffect,
         StatusType.POISON.value: PoisonEffect,
+        StatusType.FREEZE.value: FreezeEffect,
+        StatusType.SLEEP.value: SleepEffect,
     }
     
     def __init__(self):
@@ -220,6 +265,11 @@ class StatusManager:
         # Poison and Steel types are immune to poison
         if (status_type == StatusType.POISON and 
             ("poison" in pokemon.types or "steel" in pokemon.types)):
+            return False
+        
+        # Ice types are immune to freeze
+        if (status_type == StatusType.FREEZE and 
+            "ice" in pokemon.types):
             return False
         
         return True
