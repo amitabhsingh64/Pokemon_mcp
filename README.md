@@ -1,6 +1,26 @@
-# Pokemon MCP Server
+# 🎮 Pokemon MCP Server - Comprehensive Battle Simulation
 
-A Model Context Protocol (MCP) server that provides Pokemon data resources and battle simulation tools.
+A cutting-edge Model Context Protocol (MCP) server that provides comprehensive Pokemon data resources and advanced battle simulation tools with realistic game mechanics.
+
+## 🔥 Enhanced Features
+
+✨ **Comprehensive Battle System** with 5 status effects, official damage calculations, and cinematic viewing  
+⚔️ **40+ Moves Database** with Pokemon-specific movesets and accurate stats  
+🎭 **Epic Battle Display** with slow-motion animations, emojis, and health bars  
+📊 **Official Pokemon Formula** for damage calculations and stat computation  
+🌟 **Status Effects** including Paralysis, Burn, Poison, Freeze, and Sleep  
+🎯 **Type Effectiveness** complete 18-type chart with STAB bonuses  
+
+## 🚀 Quick Demo
+
+```bash
+# Epic cinematic battle with status effects!
+python interactive_test.py battle charizard mewtwo --level 50
+
+# See: 🔥 Charizard used Flamethrower! 💥 SUPER EFFECTIVE! 💥
+#      ⚡ Mewtwo is UNABLE TO MOVE (Paralyzed)
+#      💚 🔥 ████████░░ 156 HP
+```
 
 ## Project Structure
 
@@ -267,28 +287,62 @@ Ask Claude: *"Can you get information about Charizard using the Pokemon resource
 2. Use `python interactive_test.py status` to check connectivity
 3. Run `./test_all.sh` for comprehensive testing
 
-## Contributing
+## 👨‍💻 Author
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
+**Shobhit Chaturvedi**  
+- **GitHub**: [@ShobhitChaturvedi](https://github.com/ShobhitChaturvedi)  
+- **Repository**: [Scopely_Pokemon_MCP](https://github.com/ShobhitChaturvedi/Scopely_Pokemon_MCP)  
+
+## 🤝 Contributing
+
+1. Fork the repository from [ShobhitChaturvedi/Scopely_Pokemon_MCP](https://github.com/ShobhitChaturvedi/Scopely_Pokemon_MCP)
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes with comprehensive tests
 4. Add tests for new functionality
 5. Run the test suite: `./test_all.sh`
-6. Submit a pull request
+6. Commit with descriptive messages: `git commit -m 'Add amazing feature'`
+7. Push to your branch: `git push origin feature/amazing-feature`
+8. Submit a pull request
 
-## License
+## 📜 License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
 - **PokéAPI**: Comprehensive Pokemon data source (https://pokeapi.co/)
-- **FastAPI**: Modern Python web framework
-- **Anthropic**: Model Context Protocol specification
-- **Nintendo/Game Freak**: Original Pokemon game mechanics
+- **FastAPI**: Modern Python web framework for building APIs
+- **Anthropic**: Model Context Protocol specification and Claude AI
+- **Nintendo/Game Freak/Pokémon Company**: Original Pokemon game mechanics and design
+- **Rich**: Beautiful terminal formatting library
+- **httpx**: Modern async HTTP client for Python
+
+## 🚀 Technical Assessment Features
+
+This project demonstrates:
+- ✅ **MCP Protocol Implementation**: Complete resource and tool providers
+- ✅ **Advanced Battle Mechanics**: Official Pokemon damage formulas and systems
+- ✅ **5 Status Effects**: Paralysis, Burn, Poison, Freeze, Sleep with type immunities
+- ✅ **Comprehensive Type System**: 18-type effectiveness chart with dual-type support
+- ✅ **40+ Moves Database**: Pokemon-specific movesets with accurate stats
+- ✅ **Epic User Experience**: Cinematic battle display with animations and emojis
+- ✅ **Performance Optimization**: Async architecture with intelligent caching
+- ✅ **Testing Coverage**: Comprehensive test suite with automated validation
+- ✅ **Documentation**: Complete API documentation and usage examples
 
 ---
 
-**Ready to battle!** 🎮⚡🔥💧🌱
+## 🎮 Ready to Battle!
 
-Start the server with `./start_server.sh` and begin exploring the Pokemon world with AI assistance!
+**Start your Pokemon adventure:**
+
+```bash
+git clone https://github.com/ShobhitChaturvedi/Scopely_Pokemon_MCP.git
+cd Scopely_Pokemon_MCP
+./start_server.sh
+python interactive_test.py battle charizard mewtwo --level 50
+```
+
+Experience the most comprehensive Pokemon battle simulation with AI assistance! ⚡🔥💧🌱✨
+
+**May the best trainer win!** 🏆
