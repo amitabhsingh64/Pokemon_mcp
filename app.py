@@ -14,6 +14,7 @@ from typing import Dict, Any, Optional
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -125,24 +126,21 @@ async def get_type_chart():
 
 
 # Tool Endpoints
-@app.post("/tool/battle/simulate")
-async def simulate_battle(
-    pokemon1_name: str,
-    pokemon2_name: str,
+class BattleRequest(BaseModel):
+    pokemon1_name: str
+    pokemon2_name: str
     level: int = 50
-):
+
+@app.post("/tool/battle/simulate")
+async def simulate_battle(request: BattleRequest):
     """Simulate a Pokemon battle."""
-    return await battle_tool.simulate_battle(pokemon1_name, pokemon2_name, level)
+    return await battle_tool.simulate_battle(request.pokemon1_name, request.pokemon2_name, request.level)
 
 
 @app.post("/tool/battle/predict")
-async def predict_battle(
-    pokemon1_name: str,
-    pokemon2_name: str,
-    level: int = 50
-):
+async def predict_battle(request: BattleRequest):
     """Predict battle outcome without full simulation."""
-    return await battle_tool.predict_battle(pokemon1_name, pokemon2_name, level)
+    return await battle_tool.predict_battle(request.pokemon1_name, request.pokemon2_name, request.level)
 
 
 # Utility Endpoints
