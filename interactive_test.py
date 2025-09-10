@@ -81,7 +81,7 @@ async def display_epic_battle(result: Dict[str, Any], pokemon1: str, pokemon2: s
     # Display turn-by-turn action
     if turn_history:
         for turn_data in turn_history:
-            await display_battle_turn(turn_data, p1_emoji, p2_emoji)
+            await display_battle_turn(turn_data, p1_emoji, p2_emoji, pokemon1, pokemon2, final_stats)
     else:
         # Fallback to battle log
         await display_battle_log_slow(battle_log, p1_emoji, p2_emoji)
@@ -144,7 +144,7 @@ async def display_epic_battle(result: Dict[str, Any], pokemon1: str, pokemon2: s
     
     rprint(f"\n[bold yellow]Thanks for watching this epic battle! 🎮[/bold yellow]")
 
-async def display_battle_turn(turn_data: Dict[str, Any], p1_emoji: str, p2_emoji: str):
+async def display_battle_turn(turn_data: Dict[str, Any], p1_emoji: str, p2_emoji: str, pokemon1: str, pokemon2: str, final_stats: Dict[str, Any]):
     """Display a single battle turn with animation."""
     turn_num = turn_data.get('turn_number', 0)
     p1_action = turn_data.get('pokemon1_action', '')
@@ -157,7 +157,20 @@ async def display_battle_turn(turn_data: Dict[str, Any], p1_emoji: str, p2_emoji
     p2_hp = turn_data.get('pokemon2_hp_after', 0)
     
     rprint(f"[bold blue]🔄 Turn {turn_num}[/bold blue]")
+    
+    # Show active status effects at start of turn (simulate what would be active)
+    # This is a visual enhancement to show status effects more clearly
+    if turn_num > 1:  # Only show after first turn when status effects might be active
+        await show_active_status_effects(pokemon1, pokemon2, p1_emoji, p2_emoji)
+    
     await asyncio.sleep(0.8)
+    
+    # Show status effects at start of turn (if any exist)
+    for status_msg in status_effects:
+        if any(keyword in status_msg.lower() for keyword in ['hurt by', 'unable to move', 'fast asleep', 'frozen', 'paralyzed']):
+            enhanced_status = add_battle_emojis(status_msg)
+            rprint(f"  💫 {enhanced_status}")
+            await asyncio.sleep(1.0)
     
     # Show actions with emojis
     if p1_action and 'used' in p1_action.lower():
@@ -165,28 +178,41 @@ async def display_battle_turn(turn_data: Dict[str, Any], p1_emoji: str, p2_emoji
         enhanced_action = add_battle_emojis(p1_action)
         rprint(f"  {p1_emoji} {enhanced_action} {move_emoji}")
         await asyncio.sleep(1.2)
+    elif p1_action and any(keyword in p1_action.lower() for keyword in ['unable', 'fainted', 'no action']):
+        enhanced_action = add_battle_emojis(p1_action)
+        rprint(f"  {p1_emoji} {enhanced_action}")
+        await asyncio.sleep(1.0)
     
     if p2_action and 'used' in p2_action.lower():
         move_emoji = get_move_emoji(p2_move)
         enhanced_action = add_battle_emojis(p2_action)
         rprint(f"  {p2_emoji} {enhanced_action} {move_emoji}")
         await asyncio.sleep(1.2)
+    elif p2_action and any(keyword in p2_action.lower() for keyword in ['unable', 'fainted', 'no action']):
+        enhanced_action = add_battle_emojis(p2_action)
+        rprint(f"  {p2_emoji} {enhanced_action}")
+        await asyncio.sleep(1.0)
     
-    # Show status effects
+    # Show new status effects applied this turn
     for status_msg in status_effects:
-        enhanced_status = add_battle_emojis(status_msg)
-        rprint(f"  💫 {enhanced_status}")
-        await asyncio.sleep(0.8)
+        if any(keyword in status_msg.lower() for keyword in ['is now', 'became', 'was inflicted']):
+            enhanced_status = add_battle_emojis(status_msg)
+            rprint(f"  🌟 {enhanced_status}")
+            await asyncio.sleep(1.0)
     
-    # Show HP after turn
+    # Show HP after turn with health bars
     if p1_hp > 0 and p2_hp > 0:
-        rprint(f"  💚 HP: {p1_emoji} {p1_hp} | {p2_emoji} {p2_hp}")
+        # Create mini health bars for turn display
+        p1_bar = create_health_bar(p1_hp, 200, 10)  # Estimate max HP for display
+        p2_bar = create_health_bar(p2_hp, 200, 10)
+        rprint(f"  💚 {p1_emoji} {p1_bar} {p1_hp} HP")
+        rprint(f"  💚 {p2_emoji} {p2_bar} {p2_hp} HP")
     elif p1_hp <= 0:
-        rprint(f"  💀 {p1_emoji} fainted!")
+        rprint(f"  💀 {p1_emoji} [red]FAINTED![/red]")
     elif p2_hp <= 0:
-        rprint(f"  💀 {p2_emoji} fainted!")
+        rprint(f"  💀 {p2_emoji} [red]FAINTED![/red]")
     
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(0.8)
     rprint("")
 
 async def display_battle_log_slow(battle_log: list, p1_emoji: str, p2_emoji: str):
@@ -248,21 +274,58 @@ def get_move_emoji(move_name: str) -> str:
 
 def add_battle_emojis(text: str) -> str:
     """Add emojis to battle text for more excitement."""
+    # Effectiveness messages
     text = text.replace("super effective", "💥 SUPER EFFECTIVE 💥")
     text = text.replace("not very effective", "😐 not very effective")
+    text = text.replace("It's super effective!", "💥 It's SUPER EFFECTIVE! 💥")
+    text = text.replace("It's not very effective", "😐 It's not very effective")
+    
+    # Battle outcomes
     text = text.replace("critical hit", "💥 CRITICAL HIT 💥")
-    text = text.replace("fainted", "💀 fainted")
-    text = text.replace("burned", "🔥 burned")
-    text = text.replace("paralyzed", "⚡ paralyzed")
-    text = text.replace("poisoned", "☠️ poisoned")
-    text = text.replace("frozen", "❄️ frozen")
-    text = text.replace("asleep", "😴 asleep")
-    text = text.replace("hurt by burn", "🔥 hurt by burn")
-    text = text.replace("hurt by poison", "☠️ hurt by poison")
-    text = text.replace("unable to move", "😵 unable to move")
-    text = text.replace("missed", "💨 missed")
+    text = text.replace("Critical hit!", "💥 CRITICAL HIT! 💥")
+    text = text.replace("fainted", "💀 FAINTED")
+    text = text.replace("missed", "💨 MISSED")
+    
+    # Status effects - initial application
+    text = text.replace("is now paralysis", "⚡ is now PARALYZED")
+    text = text.replace("is now burn", "🔥 is now BURNED")
+    text = text.replace("is now poison", "☠️ is now POISONED")
+    text = text.replace("is now freeze", "❄️ is now FROZEN")
+    text = text.replace("is now sleep", "😴 is now ASLEEP")
+    
+    # Status effects - ongoing effects
+    text = text.replace("hurt by burn", "🔥 HURT BY BURN")
+    text = text.replace("hurt by poison", "☠️ HURT BY POISON")
+    text = text.replace("is hurt by its burn", "🔥 is HURT BY BURN")
+    text = text.replace("is hurt by poison", "☠️ is HURT BY POISON")
+    
+    # Status effects - prevention
+    text = text.replace("unable to move", "⚡ UNABLE TO MOVE (Paralyzed)")
+    text = text.replace("is unable to move", "⚡ is UNABLE TO MOVE (Paralyzed)")
+    text = text.replace("fast asleep", "😴 FAST ASLEEP")
+    text = text.replace("is fast asleep", "😴 is FAST ASLEEP")
+    text = text.replace("frozen solid", "❄️ FROZEN SOLID")
+    text = text.replace("is frozen solid", "❄️ is FROZEN SOLID")
+    
+    # Status recovery
+    text = text.replace("thawed out", "❄️➡️ THAWED OUT")
+    text = text.replace("woke up", "😴➡️ WOKE UP")
+    text = text.replace("recovered from", "✨ RECOVERED FROM")
     
     return text
+
+async def show_active_status_effects(pokemon1: str, pokemon2: str, p1_emoji: str, p2_emoji: str):
+    """Show active status effects in a visually appealing way."""
+    # This is a visual enhancement - in a real implementation, we'd track actual status
+    # For now, we'll show this as a placeholder when status effects are likely active
+    status_display = []
+    
+    # You could extend this to track actual status from battle data
+    # For demo purposes, we'll show the concept
+    
+    if status_display:
+        rprint(f"  [dim]💫 Active Effects: {' | '.join(status_display)}[/dim]")
+        await asyncio.sleep(0.5)
 
 class PokemonMCPTester:
     """Interactive tester for Pokemon MCP Server."""
