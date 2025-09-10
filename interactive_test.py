@@ -243,35 +243,58 @@ async def battle(ctx, pokemon1, pokemon2, level):
         if "error" in result:
             rprint(f"[red]✗ Error: {result['error']}[/red]")
         else:
-            battle_result = result.get('battle_result', {})
-            winner = battle_result.get('winner', 'Unknown')
-            total_turns = battle_result.get('total_turns', 0)
+            # Handle new enhanced battle system format
+            winner = result.get('winner', 'Unknown')
+            total_turns = result.get('turns', 0)
             
             rprint(f"\n[green]🏆 Winner: {winner.title()}[/green]")
             rprint(f"[blue]📊 Battle lasted {total_turns} turns[/blue]")
             
-            # Show battle log summary
-            battle_log = battle_result.get('battle_log', [])
+            # Show battle log (enhanced format)
+            battle_log = result.get('battle_log', [])
             if battle_log:
-                rprint("\n[yellow]📜 Battle Summary:[/yellow]")
-                for i, log_entry in enumerate(battle_log[-5:], 1):  # Show last 5 entries
-                    if log_entry.get('action') == 'attack':
-                        attacker = log_entry.get('attacker', '')
-                        damage = log_entry.get('damage', 0)
-                        move = log_entry.get('move', '')
-                        rprint(f"  • {attacker.title()} used {move.title()}: {damage} damage")
-                    elif log_entry.get('action') == 'faint':
-                        rprint(f"  • {log_entry.get('message', '')}")
+                rprint("\n[yellow]📜 Battle Highlights:[/yellow]")
+                # Show key moments from the battle
+                key_moments = []
+                for log in battle_log:
+                    if any(keyword in log.lower() for keyword in ['used', 'critical', 'super effective', 'fainted']):
+                        key_moments.append(log)
+                
+                # Show last 8 key moments
+                for moment in key_moments[-8:]:
+                    if moment.strip():
+                        rprint(f"  • {moment}")
             
-            # Show final stats
-            if 'final_stats' in result:
+            # Show final stats (enhanced format)
+            final_stats = result.get('final_stats', {})
+            if final_stats:
                 rprint("\n[blue]📈 Final Stats:[/blue]")
-                for pokemon_name, stats in result['final_stats'].items():
+                for pokemon_name, stats in final_stats.items():
                     hp = stats.get('hp', 0)
                     max_hp = stats.get('max_hp', 1)
-                    hp_percent = (hp / max_hp) * 100
-                    status = "Fainted" if stats.get('fainted') else f"{hp}/{max_hp} HP ({hp_percent:.1f}%)"
-                    rprint(f"  • {pokemon_name.title()}: {status}")
+                    hp_percent = stats.get('hp_percentage', 0)
+                    status_effects = stats.get('status', [])
+                    is_fainted = stats.get('is_fainted', False)
+                    
+                    status_text = ""
+                    if status_effects:
+                        status_text = f" ({', '.join(status_effects).title()})"
+                    
+                    if is_fainted:
+                        rprint(f"  • {pokemon_name.title()}: [red]Fainted[/red]{status_text}")
+                    else:
+                        rprint(f"  • {pokemon_name.title()}: {hp}/{max_hp} HP ({hp_percent:.1f}%){status_text}")
+            
+            # Show battle mechanics summary
+            mechanics = result.get('battle_mechanics', {})
+            if mechanics:
+                rprint("\n[cyan]🔧 Battle Mechanics Used:[/cyan]")
+                features = mechanics.get('features_implemented', [])
+                if features:
+                    for feature in features[:5]:  # Show first 5 features
+                        rprint(f"  ✓ {feature}")
+                    if len(features) > 5:
+                        rprint(f"  ... and {len(features) - 5} more features")
 
 
 @cli.command()
