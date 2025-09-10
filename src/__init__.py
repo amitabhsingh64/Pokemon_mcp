@@ -1,0 +1,1 @@
+# Pokémon Battle MCP Server package
